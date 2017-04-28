@@ -25,7 +25,8 @@ int RabinKarp(const std::string mainStr, const std::string sub, const int openMp
 	int diap = mainStr.size() / openMpiThreadNum;
 	int rest = mainStr.size()%openMpiThreadNum;
 	int start = diap * rank;
-	(rank == openMpiThreadNum - 1) : diap = mainStr.size() - start + 1 : diap++;
+	int num = 0;
+	(rank == openMpiThreadNum - 1) ? diap = mainStr.size() - start + 1 : diap++;
 	long desiredSubStrHash = hashFunc(sub);
 
 		#pragma omp parallel num_threads(openMpThreadNum)  reduction(+:num) firstprivate(desiredSubStrHash)
@@ -47,16 +48,22 @@ int RabinKarp(const std::string mainStr, const std::string sub, const int openMp
 	return num;
 }
 
-int main(int argc, char const *argv[]){
+int main(int argc, char *argv[]){
 	std::string str,strTotal,ourSubString;
 	std::ifstream in;
 	int proc_num,rank,result = 0,subRes = 0;
 	in.open(pathToTheFile);
-	while ( in ) {
+	if (in.is_open() ) {
+		while ( in ) {
 		getline(in,str);
  	  	strTotal += str;
+		}
+		in.close();
 	}
-	in.close();
+	else {
+		printf("Can't open the file\n");
+		exit(-1);
+	}
 
 	printf("Enter your substring\n");
 	std::cin >> ourSubString;
@@ -64,17 +71,17 @@ int main(int argc, char const *argv[]){
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &proc_num);
-	omp_set_num_threads(NUMBER_OF_MPI_THR);
+	omp_set_num_threads(NUMBER_OF_OPENMP_THR);
 
 	clock_t begin_time = clock();
 
-	result = RabinKarp(stdmainStr, stdsub, NUMBER_OF_OPENMP_THR,NUMBER_OF_MPI_THR);
+	result = RabinKarp(strTotal, ourSubString, NUMBER_OF_OPENMP_THR,NUMBER_OF_MPI_THR);
 
 	MPI_Reduce(&subRes, &result, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 	clock_t stop_time = clock();
 	float parr_time = float(stop_time - begin_time) / CLOCKS_PER_SEC;
 	MPI_Finalize();
-	printf("Parallel time on %d threads \n %d processes: %d \n Result = %d \n",NUMBER_OF_OPENMP_THR,NUMBER_OF_MPI_THR,parr_time,Result)
+	printf("Parallel time on %d threads \n %d processes: %f \n Result = %d \n",NUMBER_OF_OPENMP_THR,NUMBER_OF_MPI_THR,parr_time,result);
 	return 0;
 }
